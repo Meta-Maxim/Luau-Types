@@ -1,0 +1,6 @@
+{
+  "name": "luau-types",
+  "tree": {
+    "$path": "lib"
+  }
+}
