@@ -5,6 +5,7 @@ export type TypeId =
 	| "table"
 	| "function"
 	| "thread"
+	| "Literal"
 	| "Tuple"
 	| "Map" -- { [Type]: Type }
 	| "Field" -- { field: Type }
@@ -29,6 +30,10 @@ export type NumberType = Type
 export type BooleanType = Type
 
 export type AnyType = Type
+
+export type LiteralType = Type & {
+	Value: any,
+}
 
 export type OptionalType = Type & {
 	ValueType: Type,
@@ -58,8 +63,8 @@ export type Table = Type & {
 }
 
 local Types = {}
-local TypeLiterals = {}
-Types.Literals = TypeLiterals
+local TypeGlobals = {}
+Types.Globals = TypeGlobals
 
 local StringType = {
 	Type = "string",
@@ -73,7 +78,7 @@ function StringType:__eq(other: any): boolean
 	return other == StringType
 end
 
-TypeLiterals["string"] = StringType
+TypeGlobals["string"] = StringType
 Types.String = StringType
 
 local NumberType = {
@@ -88,7 +93,7 @@ function NumberType:__eq(other: any): boolean
 	return other == NumberType
 end
 
-TypeLiterals["number"] = NumberType
+TypeGlobals["number"] = NumberType
 Types.Number = NumberType
 
 local BooleanType = {
@@ -103,7 +108,7 @@ function BooleanType:__eq(other: any): boolean
 	return other == BooleanType
 end
 
-TypeLiterals["boolean"] = BooleanType
+TypeGlobals["boolean"] = BooleanType
 Types.Boolean = BooleanType
 
 local FunctionType = {
@@ -118,7 +123,7 @@ function FunctionType:__eq(other: any): boolean
 	return other == FunctionType
 end
 
-TypeLiterals["function"] = FunctionType
+TypeGlobals["function"] = FunctionType
 Types.Function = FunctionType
 
 local ThreadType = {
@@ -133,7 +138,7 @@ function ThreadType:__eq(other: any): boolean
 	return other == ThreadType
 end
 
-TypeLiterals["thread"] = ThreadType
+TypeGlobals["thread"] = ThreadType
 Types.Thread = ThreadType
 
 local AnyType = {
@@ -148,8 +153,31 @@ function AnyType:__eq(other: any): boolean
 	return other == AnyType
 end
 
-TypeLiterals["any"] = AnyType
+TypeGlobals["any"] = AnyType
 Types.Any = AnyType
+
+local LiteralType = {}
+LiteralType.__index = LiteralType
+
+function LiteralType.new(value: any): LiteralType
+	return setmetatable({
+		Type = "Literal",
+		Value = value,
+	}, LiteralType) :: LiteralType
+end
+
+function LiteralType:Is(value: any): boolean
+	return value == self.Value
+end
+
+function LiteralType:__eq(other: any): boolean
+	return type(other) == "table" and getmetatable(other) == LiteralType and self.Value == other.Value
+end
+
+Types.Literal = LiteralType
+
+TypeGlobals["true"] = LiteralType.new(true)
+TypeGlobals["false"] = LiteralType.new(false)
 
 local OptionalType = {}
 OptionalType.__index = OptionalType
@@ -177,10 +205,10 @@ Types.Optional = OptionalType
 local Tuple = {}
 Tuple.__index = Tuple
 
-function Tuple.new(): Tuple
+function Tuple.new(...): Tuple
 	return setmetatable({
 		Type = "Tuple",
-		ValueTypes = {},
+		ValueTypes = { ... },
 	}, Tuple) :: Tuple
 end
 
@@ -190,7 +218,7 @@ end
 
 function Tuple:ReplaceValueType(valueType: Type, newValueType: Type)
 	for i, v in ipairs(self.ValueTypes) do
-		if v == valueType then
+		if rawequal(v, valueType) then
 			self.ValueTypes[i] = newValueType
 			return
 		end
@@ -227,10 +255,10 @@ Types.Tuple = Tuple
 local Union = {}
 Union.__index = Union
 
-function Union.new(): Union
+function Union.new(...): Union
 	return setmetatable({
 		Type = "Union",
-		Types = {},
+		Types = { ... },
 	}, Union) :: Union
 end
 
@@ -240,7 +268,7 @@ end
 
 function Union:ReplaceType(valueType: Type, newValueType: Type)
 	for i, v in ipairs(self.Types) do
-		if v == valueType then
+		if rawequal(v, valueType) then
 			self.Types[i] = newValueType
 			return
 		end
@@ -299,11 +327,11 @@ Types.Map = MapType
 local FieldType = {}
 FieldType.__index = FieldType
 
-function FieldType.new(key: any): FieldType
+function FieldType.new(key: any, valueType: any?): FieldType
 	return setmetatable({
 		Type = "Field",
 		Key = key,
-		ValueType = nil,
+		ValueType = valueType,
 	}, FieldType) :: FieldType
 end
 
@@ -319,11 +347,11 @@ Types.Field = FieldType
 local TableType = {}
 TableType.__index = TableType
 
-function TableType.new(): Table
+function TableType.new(maps: { MapType }?, fields: { FieldType }?): Table
 	return setmetatable({
 		Type = "table",
-		Maps = {},
-		Fields = {},
+		Maps = maps or {},
+		Fields = fields or {},
 	}, TableType) :: Table
 end
 
