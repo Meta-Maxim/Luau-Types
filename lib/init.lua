@@ -66,93 +66,117 @@ local Types = {}
 local TypeGlobals = {}
 Types.Globals = TypeGlobals
 
-local StringType = {
-	Type = "string",
-} :: StringType
+local StringType = { Type = "string" }
+StringType.__index = StringType
 
 function StringType:Is(value): boolean
 	return type(value) == "string"
 end
 
 function StringType:__eq(other: any): boolean
-	return other == StringType
+	return type(other) == "table" and getmetatable(other) == StringType
 end
 
+function StringType:__tostring(): string
+	return "string"
+end
+
+StringType = setmetatable({}, StringType) :: StringType
 TypeGlobals["string"] = StringType
 Types.String = StringType
 
-local NumberType = {
-	Type = "number",
-} :: NumberType
+local NumberType = { Type = "number" }
+NumberType.__index = NumberType
 
 function NumberType:Is(value): boolean
 	return type(value) == "number"
 end
 
 function NumberType:__eq(other: any): boolean
-	return other == NumberType
+	return type(other) == "table" and getmetatable(other) == NumberType
 end
 
+function NumberType:__tostring(): string
+	return "number"
+end
+
+NumberType = setmetatable({}, NumberType) :: NumberType
 TypeGlobals["number"] = NumberType
 Types.Number = NumberType
 
-local BooleanType = {
-	Type = "boolean",
-} :: BooleanType
+local BooleanType = { Type = "boolean" }
+BooleanType.__index = BooleanType
 
 function BooleanType:Is(value): boolean
 	return type(value) == "boolean"
 end
 
 function BooleanType:__eq(other: any): boolean
-	return other == BooleanType
+	return type(other) == "table" and getmetatable(other) == BooleanType
 end
 
+function BooleanType:__tostring(): string
+	return "boolean"
+end
+
+BooleanType = setmetatable({}, BooleanType) :: BooleanType
 TypeGlobals["boolean"] = BooleanType
 Types.Boolean = BooleanType
 
-local FunctionType = {
-	Type = "function",
-} :: FunctionType
+local FunctionType = { Type = "function" }
+FunctionType.__index = FunctionType
 
 function FunctionType:Is(value): boolean
 	return type(value) == "function"
 end
 
 function FunctionType:__eq(other: any): boolean
-	return other == FunctionType
+	return type(other) == "table" and getmetatable(other) == FunctionType
 end
 
+function FunctionType:__tostring(): string
+	return "function"
+end
+
+FunctionType = setmetatable({}, FunctionType) :: FunctionType
 TypeGlobals["function"] = FunctionType
 Types.Function = FunctionType
 
-local ThreadType = {
-	Type = "thread",
-} :: ThreadType
+local ThreadType = { Type = "thread" }
+ThreadType.__index = ThreadType
 
 function ThreadType:Is(value): boolean
 	return type(value) == "thread"
 end
 
 function ThreadType:__eq(other: any): boolean
-	return other == ThreadType
+	return type(other) == "table" and getmetatable(other) == ThreadType
 end
 
+function ThreadType:__tostring(): string
+	return "thread"
+end
+
+ThreadType = setmetatable({}, ThreadType) :: ThreadType
 TypeGlobals["thread"] = ThreadType
 Types.Thread = ThreadType
 
-local AnyType = {
-	Type = "Any",
-} :: AnyType
+local AnyType = { Type = "Any" }
+AnyType.__index = AnyType
 
 function AnyType:Is(): boolean
 	return true
 end
 
 function AnyType:__eq(other: any): boolean
-	return other == AnyType
+	return type(other) == "table" and getmetatable(other) == AnyType
 end
 
+function AnyType:__tostring(): string
+	return "any"
+end
+
+AnyType = setmetatable({}, AnyType) :: AnyType
 TypeGlobals["any"] = AnyType
 Types.Any = AnyType
 
@@ -172,6 +196,14 @@ end
 
 function LiteralType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == LiteralType and self.Value == other.Value
+end
+
+function LiteralType:__tostring(): string
+	local valueType = type(self.Value)
+	if valueType == "string" then
+		return '"' .. self.Value .. '"'
+	end
+	return tostring(self.Value)
 end
 
 Types.Literal = LiteralType
@@ -198,6 +230,10 @@ end
 
 function OptionalType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == OptionalType and self.ValueType == other.ValueType
+end
+
+function OptionalType:__tostring(): string
+	return tostring(self.ValueType) .. "?"
 end
 
 Types.Optional = OptionalType
@@ -248,6 +284,14 @@ function Tuple:__eq(other: any): boolean
 		end
 	end
 	return true
+end
+
+function Tuple:__tostring(): string
+	local valueStrings: { string } = {}
+	for i, valueType in self.ValueTypes do
+		valueStrings[i] = tostring(valueType)
+	end
+	return "(" .. table.concat(valueStrings, ", ") .. ")"
 end
 
 Types.Tuple = Tuple
@@ -302,6 +346,14 @@ function Union:__eq(other: any): boolean
 	return true
 end
 
+function Union:__tostring(): string
+	local valueStrings: { string } = {}
+	for i, valueType in self.Types do
+		valueStrings[i] = tostring(valueType)
+	end
+	return "(" .. table.concat(valueStrings, " | ") .. ")"
+end
+
 Types.Union = Union
 
 local MapType = {}
@@ -322,6 +374,10 @@ function MapType:__eq(other: any): boolean
 	return self.KeyType == other.KeyType and self.ValueType == other.ValueType
 end
 
+function MapType:__tostring(): string
+	return "[" .. tostring(self.KeyType) .. "]: " .. tostring(self.ValueType)
+end
+
 Types.Map = MapType
 
 local FieldType = {}
@@ -340,6 +396,10 @@ function FieldType:__eq(other: any): boolean
 		return false
 	end
 	return self.Key == other.Key and self.ValueType == other.ValueType
+end
+
+function FieldType:__tostring(): string
+	return tostring(self.Key) .. ": " .. tostring(self.ValueType)
 end
 
 Types.Field = FieldType
@@ -416,6 +476,26 @@ function TableType:__eq(other: any): boolean
 		end
 	end
 	return true
+end
+
+function TableType:__tostring(): string
+	local hasSpecificTypes = #self.Maps > 0 or #self.Fields > 0
+	if not hasSpecificTypes then
+		return "{}"
+	end
+	local fieldStrings: { string } = {}
+	for i, field in ipairs(self.Fields) do
+		fieldStrings[i] = tostring(field)
+	end
+	local mapStrings: { string } = {}
+	for i, map in ipairs(self.Maps) do
+		mapStrings[i] = tostring(map)
+	end
+	return "{ "
+		.. table.concat(fieldStrings, "; ")
+		.. (#fieldStrings > 0 and "; " or "")
+		.. table.concat(mapStrings, "; ")
+		.. " }"
 end
 
 Types.Table = TableType
