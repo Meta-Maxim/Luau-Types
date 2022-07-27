@@ -1,5 +1,6 @@
 export type TypeId =
-	"boolean"
+	"nil"
+	| "boolean"
 	| "number"
 	| "string"
 	| "table"
@@ -18,6 +19,8 @@ export type Type = {
 	Is: (...any) -> boolean,
 	Type: TypeId,
 }
+
+export type NilType = Type
 
 export type FunctionType = Type
 
@@ -65,6 +68,25 @@ export type Table = Type & {
 local Types = {}
 local TypeGlobals = {}
 Types.Globals = TypeGlobals
+
+local NilType = { Type = "nil" }
+NilType.__index = NilType
+
+function NilType:Is(value): boolean
+	return value == nil
+end
+
+function NilType:__eq(other: any): boolean
+	return type(other) == "table" and getmetatable(other) == NilType
+end
+
+function NilType:__tostring(): string
+	return "nil"
+end
+
+NilType = setmetatable({}, NilType) :: NilType
+TypeGlobals["nil"] = NilType
+Types.Nil = NilType
 
 local StringType = { Type = "string" }
 StringType.__index = StringType
