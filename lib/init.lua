@@ -72,8 +72,16 @@ Types.Globals = TypeGlobals
 local NilType = { Type = "nil" }
 NilType.__index = NilType
 
-function NilType:Is(value): boolean
+function NilType:Is(value: any): boolean
 	return value == nil
+end
+
+function NilType:IsSubtype(other: Type): boolean
+	return other.Type == "nil" or other.Type == "Any" or other.Type == "Optional"
+end
+
+function NilType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function NilType:__eq(other: any): boolean
@@ -91,8 +99,16 @@ Types.Nil = NilType
 local StringType = { Type = "string" }
 StringType.__index = StringType
 
-function StringType:Is(value): boolean
+function StringType:Is(value: any): boolean
 	return type(value) == "string"
+end
+
+function StringType:IsSubtype(other: Type): boolean
+	return other.Type == "string" or other.Type == "Any"
+end
+
+function StringType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function StringType:__eq(other: any): boolean
@@ -110,8 +126,16 @@ Types.String = StringType
 local NumberType = { Type = "number" }
 NumberType.__index = NumberType
 
-function NumberType:Is(value): boolean
+function NumberType:Is(value: any): boolean
 	return type(value) == "number"
+end
+
+function NumberType:IsSubtype(other: Type): boolean
+	return other.Type == "number" or other.Type == "Any"
+end
+
+function NumberType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function NumberType:__eq(other: any): boolean
@@ -129,8 +153,16 @@ Types.Number = NumberType
 local BooleanType = { Type = "boolean" }
 BooleanType.__index = BooleanType
 
-function BooleanType:Is(value): boolean
+function BooleanType:Is(value: any): boolean
 	return type(value) == "boolean"
+end
+
+function BooleanType:IsSubtype(other: Type): boolean
+	return other.Type == "boolean" or other.Type == "Any"
+end
+
+function BooleanType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function BooleanType:__eq(other: any): boolean
@@ -148,8 +180,16 @@ Types.Boolean = BooleanType
 local FunctionType = { Type = "function" }
 FunctionType.__index = FunctionType
 
-function FunctionType:Is(value): boolean
+function FunctionType:Is(value: any): boolean
 	return type(value) == "function"
+end
+
+function FunctionType:IsSubtype(other: Type): boolean
+	return other.Type == "function" or other.Type == "Any"
+end
+
+function FunctionType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function FunctionType:__eq(other: any): boolean
@@ -167,8 +207,16 @@ Types.Function = FunctionType
 local ThreadType = { Type = "thread" }
 ThreadType.__index = ThreadType
 
-function ThreadType:Is(value): boolean
+function ThreadType:Is(value: any): boolean
 	return type(value) == "thread"
+end
+
+function ThreadType:IsSubtype(other: Type): boolean
+	return other.Type == "thread" or other.Type == "Any"
+end
+
+function ThreadType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function ThreadType:__eq(other: any): boolean
@@ -188,6 +236,14 @@ AnyType.__index = AnyType
 
 function AnyType:Is(): boolean
 	return true
+end
+
+function AnyType:IsSubtype(_other: Type): boolean
+	return true
+end
+
+function AnyType:IsTypeOf(other: Type): boolean
+	return other.Type == "Any"
 end
 
 function AnyType:__eq(other: any): boolean
@@ -214,6 +270,14 @@ end
 
 function LiteralType:Is(value: any): boolean
 	return value == self.Value
+end
+
+function LiteralType:IsSubtype(other: Type): boolean
+	return other.Type == "Literal" and self.Value == other.Value
+end
+
+function LiteralType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function LiteralType:__eq(other: any): boolean
@@ -250,6 +314,17 @@ function OptionalType:Is(...): boolean
 	return self.ValueType:Is(...)
 end
 
+function OptionalType:IsSubtype(other: Type): boolean
+	if other.Type == "Optional" then
+		return self.ValueType:IsSubtype(other.ValueType)
+	end
+	return other.Type == "Any"
+end
+
+function OptionalType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
+end
+
 function OptionalType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == OptionalType and self.ValueType == other.ValueType
 end
@@ -275,7 +350,7 @@ function Tuple:AddValueType(value: Type)
 end
 
 function Tuple:ReplaceValueType(valueType: Type, newValueType: Type)
-	for i, v in ipairs(self.ValueTypes) do
+	for i, v in self.ValueTypes do
 		if rawequal(v, valueType) then
 			self.ValueTypes[i] = newValueType
 			return
@@ -285,12 +360,34 @@ end
 
 function Tuple:Is(...): boolean
 	local values = { ... }
-	for i, valueType in ipairs(self.ValueTypes) do
+	for i, valueType in self.ValueTypes do
 		if not valueType:Is(values[i]) then
 			return false
 		end
 	end
 	return true
+end
+
+function Tuple:IsSubtype(other: Type): boolean
+	if other.Type == "Any" then
+		return true
+	end
+	if other.Type == "Tuple" then
+		if #self.ValueTypes ~= #other.ValueTypes then
+			return false
+		end
+		for i, valueType in self.ValueTypes do
+			if not valueType:IsSubtype(other.ValueTypes[i]) then
+				return false
+			end
+		end
+		return true
+	end
+	return false
+end
+
+function Tuple:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function Tuple:__eq(other: any): boolean
@@ -300,7 +397,7 @@ function Tuple:__eq(other: any): boolean
 	if #self.ValueTypes ~= #other.ValueTypes then
 		return false
 	end
-	for i, valueType in ipairs(self.ValueTypes) do
+	for i, valueType in self.ValueTypes do
 		if valueType ~= other.ValueTypes[i] then
 			return false
 		end
@@ -333,7 +430,7 @@ function Union:AddType(value: Type)
 end
 
 function Union:ReplaceType(valueType: Type, newValueType: Type)
-	for i, v in ipairs(self.Types) do
+	for i, v in self.Types do
 		if rawequal(v, valueType) then
 			self.Types[i] = newValueType
 			return
@@ -345,12 +442,36 @@ function Union:Is(value: any): boolean
 	if #self.Types == 0 then
 		return false
 	end
-	for _, type in ipairs(self.Types) do
+	for _, type in self.Types do
 		if type:Is(value) then
 			return true
 		end
 	end
 	return false
+end
+
+function Union:IsSubtype(other: Type): boolean
+	if other.Type == "Any" then
+		return true
+	end
+	if other.Type == "Union" then
+		for _, otherValueType in other.Types do
+			if not self:IsSubtype(otherValueType) then
+				return false
+			end
+		end
+		return true
+	end
+	for _, valueType in self.Types do
+		if valueType:IsSubtype(other) then
+			return true
+		end
+	end
+	return false
+end
+
+function Union:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
 end
 
 function Union:__eq(other: any): boolean
@@ -360,7 +481,7 @@ function Union:__eq(other: any): boolean
 	if #self.Types ~= #other.Types then
 		return false
 	end
-	for i, valueType in ipairs(self.Types) do
+	for i, valueType in self.Types do
 		if valueType ~= other.Types[i] then
 			return false
 		end
@@ -389,6 +510,19 @@ function MapType.new(keyType: any?, valueType: any?): MapType
 	}, MapType) :: MapType
 end
 
+function MapType:IsSubtype(other: Type): boolean
+	if other.Type == "Map" then
+		if self.KeyType and other.KeyType and not self.KeyType:IsSubtype(other.KeyType) then
+			return false
+		end
+		if self.ValueType and other.ValueType and not self.ValueType:IsSubtype(other.ValueType) then
+			return false
+		end
+		return true
+	end
+	return other.Type == "Any"
+end
+
 function MapType:__eq(other: any): boolean
 	if type(other) ~= "table" or getmetatable(other) ~= MapType then
 		return false
@@ -411,6 +545,19 @@ function FieldType.new(key: any, valueType: any?): FieldType
 		Key = key,
 		ValueType = valueType,
 	}, FieldType) :: FieldType
+end
+
+function FieldType:IsSubtype(other: Type): boolean
+	if other.Type == "Field" then
+		if self.Key ~= other.Key then
+			return false
+		end
+		if self.ValueType and other.ValueType and not self.ValueType:IsSubtype(other.ValueType) then
+			return false
+		end
+		return true
+	end
+	return other.Type == "Any"
 end
 
 function FieldType:__eq(other: any): boolean
@@ -453,7 +600,7 @@ function TableType:Is(value: any): boolean
 	local validKeys: { any } = {}
 
 	-- Check fields
-	for _, field in ipairs(self.Fields) do
+	for _, field in self.Fields do
 		local key = field.Key
 		local keyValue = value[key]
 		if keyValue == nil then
@@ -466,8 +613,8 @@ function TableType:Is(value: any): boolean
 	end
 
 	-- Check map types
-	for _, map in ipairs(self.Maps) do
-		for key, val in pairs(value) do
+	for _, map in self.Maps do
+		for key, val in value do
 			if table.find(validKeys, key) then
 				continue
 			end
@@ -480,6 +627,41 @@ function TableType:Is(value: any): boolean
 	return true
 end
 
+function TableType:IsSubtype(other: Type): boolean
+	if other.Type == "table" then
+		for _, otherMap in other.Maps do
+			local isSubtype = false
+			for _, map in self.Maps do
+				if map:IsSubtype(otherMap) then
+					isSubtype = true
+					break
+				end
+			end
+			if not isSubtype then
+				return false
+			end
+		end
+		for _, field in self.Fields do
+			local isSubtype = false
+			for _, otherField in other.Fields do
+				if field:IsSubtype(otherField) then
+					isSubtype = true
+					break
+				end
+			end
+			if not isSubtype then
+				return false
+			end
+		end
+		return true
+	end
+	return other.Type == "Any"
+end
+
+function TableType:IsTypeOf(other: Type): boolean
+	return other:IsSubtype(self)
+end
+
 function TableType:__eq(other: any): boolean
 	if type(other) ~= "table" or getmetatable(other) ~= TableType then
 		return false
@@ -487,12 +669,12 @@ function TableType:__eq(other: any): boolean
 	if #self.Maps ~= #other.Maps or #self.Fields ~= #other.Fields then
 		return false
 	end
-	for i, map in ipairs(self.Maps) do
+	for i, map in self.Maps do
 		if map ~= other.Maps[i] then
 			return false
 		end
 	end
-	for i, field in ipairs(self.Fields) do
+	for i, field in self.Fields do
 		if field ~= other.Fields[i] then
 			return false
 		end
@@ -506,11 +688,11 @@ function TableType:__tostring(): string
 		return "{}"
 	end
 	local fieldStrings: { string } = {}
-	for i, field in ipairs(self.Fields) do
+	for i, field in self.Fields do
 		fieldStrings[i] = tostring(field)
 	end
 	local mapStrings: { string } = {}
-	for i, map in ipairs(self.Maps) do
+	for i, map in self.Maps do
 		mapStrings[i] = tostring(map)
 	end
 	return "{ "

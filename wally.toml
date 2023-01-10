@@ -1,6 +1,6 @@
 [package]
 name = "meta-maxim/luau-types"
-version = "1.0.3"
+version = "1.0.4"
 license = "MIT"
 authors = ["Maxim Borsch <@Meta_Maxim>"]
 registry = "https://github.com/UpliftGames/wally-index"
