@@ -17,6 +17,8 @@ export type TypeId =
 
 export type Type = {
 	Is: (...any) -> boolean,
+	IsTypeOf: (Type) -> boolean,
+	IsSubtype: (Type) -> boolean,
 	Type: TypeId,
 }
 
