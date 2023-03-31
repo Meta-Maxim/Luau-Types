@@ -79,7 +79,7 @@ function NilType:Is(value: any): boolean
 end
 
 function NilType:IsSubtype(other: Type): boolean
-	return other.Type == "nil" or other.Type == "Any" or other.Type == "Optional"
+	return other.Type == "nil"
 end
 
 function NilType:IsTypeOf(other: Type): boolean
@@ -94,9 +94,11 @@ function NilType:__tostring(): string
 	return "nil"
 end
 
-NilType = setmetatable({}, NilType) :: NilType
-TypeGlobals["nil"] = NilType
-Types.Nil = NilType
+do
+	local nilType = setmetatable({}, NilType) :: NilType
+	TypeGlobals["nil"] = nilType
+	Types.Nil = nilType
+end
 
 local StringType = { Type = "string" }
 StringType.__index = StringType
@@ -121,9 +123,11 @@ function StringType:__tostring(): string
 	return "string"
 end
 
-StringType = setmetatable({}, StringType) :: StringType
-TypeGlobals["string"] = StringType
-Types.String = StringType
+do
+	local stringType = setmetatable({}, StringType) :: StringType
+	TypeGlobals["string"] = stringType
+	Types.String = stringType
+end
 
 local NumberType = { Type = "number" }
 NumberType.__index = NumberType
@@ -148,9 +152,11 @@ function NumberType:__tostring(): string
 	return "number"
 end
 
-NumberType = setmetatable({}, NumberType) :: NumberType
-TypeGlobals["number"] = NumberType
-Types.Number = NumberType
+do
+	local numberType = setmetatable({}, NumberType) :: NumberType
+	TypeGlobals["number"] = numberType
+	Types.Number = numberType
+end
 
 local BooleanType = { Type = "boolean" }
 BooleanType.__index = BooleanType
@@ -175,9 +181,11 @@ function BooleanType:__tostring(): string
 	return "boolean"
 end
 
-BooleanType = setmetatable({}, BooleanType) :: BooleanType
-TypeGlobals["boolean"] = BooleanType
-Types.Boolean = BooleanType
+do
+	local booleanType = setmetatable({}, BooleanType) :: BooleanType
+	TypeGlobals["boolean"] = booleanType
+	Types.Boolean = booleanType
+end
 
 local FunctionType = { Type = "function" }
 FunctionType.__index = FunctionType
@@ -202,9 +210,11 @@ function FunctionType:__tostring(): string
 	return "function"
 end
 
-FunctionType = setmetatable({}, FunctionType) :: FunctionType
-TypeGlobals["function"] = FunctionType
-Types.Function = FunctionType
+do
+	local functionType = setmetatable({}, FunctionType) :: FunctionType
+	TypeGlobals["function"] = functionType
+	Types.Function = functionType
+end
 
 local ThreadType = { Type = "thread" }
 ThreadType.__index = ThreadType
@@ -229,9 +239,11 @@ function ThreadType:__tostring(): string
 	return "thread"
 end
 
-ThreadType = setmetatable({}, ThreadType) :: ThreadType
-TypeGlobals["thread"] = ThreadType
-Types.Thread = ThreadType
+do
+	local threadType = setmetatable({}, ThreadType) :: ThreadType
+	TypeGlobals["thread"] = threadType
+	Types.Thread = threadType
+end
 
 local AnyType = { Type = "Any" }
 AnyType.__index = AnyType
@@ -256,9 +268,11 @@ function AnyType:__tostring(): string
 	return "any"
 end
 
-AnyType = setmetatable({}, AnyType) :: AnyType
-TypeGlobals["any"] = AnyType
-Types.Any = AnyType
+do
+	local anyType = setmetatable({}, AnyType) :: AnyType
+	TypeGlobals["any"] = anyType
+	Types.Any = anyType
+end
 
 local LiteralType = {}
 LiteralType.__index = LiteralType
@@ -320,7 +334,7 @@ function OptionalType:IsSubtype(other: Type): boolean
 	if other.Type == "Optional" then
 		return self.ValueType:IsSubtype(other.ValueType)
 	end
-	return other.Type == "Any"
+	return other.Type == "nil" or other.Type == "Any" or self.ValueType:IsSubtype(other)
 end
 
 function OptionalType:IsTypeOf(other: Type): boolean
