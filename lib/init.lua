@@ -79,7 +79,7 @@ function NilType:Is(value: any): boolean
 end
 
 function NilType:IsSubtype(other: Type): boolean
-	return other.Type == "nil"
+	return other.Type == "nil" or other.Type == "Any"
 end
 
 function NilType:IsTypeOf(other: Type): boolean
@@ -592,20 +592,36 @@ Types.Field = FieldType
 local TableType = {}
 TableType.__index = TableType
 
-function TableType.new(maps: { MapType }?, fields: { FieldType }?): Table
+function TableType.new(maps: { MapType }?, fields: { FieldType }?, isArray: boolean?): Table
 	return setmetatable({
 		Type = "table",
 		Maps = maps or {},
 		Fields = fields or {},
+		IsArray = isArray == true,
 	}, TableType) :: Table
 end
 
 function TableType:AddMapType(entryType: MapType)
-	self.Maps[#self.Maps + 1] = entryType
+	local maps = self.Maps
+	maps[#maps + 1] = entryType
+
+	if self.IsArray then
+		if #self.Fields > 0 then
+			self.IsArray = false
+		else
+			for _, map in maps do
+				if map.KeyType.Type ~= "number" then
+					self.IsArray = false
+					break
+				end
+			end
+		end
+	end
 end
 
 function TableType:AddFieldType(entry: FieldType)
 	self.Fields[#self.Fields + 1] = entry
+	self.IsArray = false
 end
 
 function TableType:Is(value: any): boolean
@@ -703,6 +719,11 @@ function TableType:__tostring(): string
 	if not hasSpecificTypes then
 		return "{}"
 	end
+
+	if self.IsArray then
+		return "{ " .. tostring(self.Maps[1].ValueType) .. " }"
+	end
+
 	local fieldStrings: { string } = {}
 	for i, field in self.Fields do
 		fieldStrings[i] = tostring(field)
