@@ -86,6 +86,14 @@ function NilType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
 end
 
+function NilType:CanBeSubtype(other: Type): boolean
+	return other.Type == "nil" or other.Type == "Any" or other.Type == "Optional"
+end
+
+function NilType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
+end
+
 function NilType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == NilType
 end
@@ -113,6 +121,14 @@ end
 
 function StringType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function StringType:CanBeSubtype(other: Type): boolean
+	return other.Type == "string" or other.Type == "Any"
+end
+
+function StringType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function StringType:__eq(other: any): boolean
@@ -144,6 +160,14 @@ function NumberType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
 end
 
+function NumberType:CanBeSubtype(other: Type): boolean
+	return other.Type == "number" or other.Type == "Any"
+end
+
+function NumberType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
+end
+
 function NumberType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == NumberType
 end
@@ -171,6 +195,14 @@ end
 
 function BooleanType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function BooleanType:CanBeSubtype(other: Type): boolean
+	return other.Type == "boolean" or other.Type == "Any"
+end
+
+function BooleanType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function BooleanType:__eq(other: any): boolean
@@ -202,6 +234,14 @@ function FunctionType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
 end
 
+function FunctionType:CanBeSubtype(other: Type): boolean
+	return other.Type == "function" or other.Type == "Any"
+end
+
+function FunctionType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
+end
+
 function FunctionType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == FunctionType
 end
@@ -231,6 +271,14 @@ function ThreadType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
 end
 
+function ThreadType:CanBeSubtype(other: Type): boolean
+	return other.Type == "thread" or other.Type == "Any"
+end
+
+function ThreadType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
+end
+
 function ThreadType:__eq(other: any): boolean
 	return type(other) == "table" and getmetatable(other) == ThreadType
 end
@@ -258,6 +306,14 @@ end
 
 function AnyType:IsTypeOf(other: Type): boolean
 	return other.Type == "Any"
+end
+
+function AnyType:CanBeSubtype(other: Type): boolean
+	return true
+end
+
+function AnyType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function AnyType:__eq(other: any): boolean
@@ -294,6 +350,14 @@ end
 
 function LiteralType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function LiteralType:CanBeSubtype(other: Type): boolean
+	return (other.Type == "Literal" and self.Value == other.Value) or other.Type == "Any"
+end
+
+function LiteralType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function LiteralType:__eq(other: any): boolean
@@ -339,6 +403,14 @@ end
 
 function OptionalType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function OptionalType:CanBeSubtype(other: Type): boolean
+	return other.Type == "nil" or other.Type == "Any" or self.ValueType:CanBeSubtype(other)
+end
+
+function OptionalType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function OptionalType:__eq(other: any): boolean
@@ -404,6 +476,28 @@ end
 
 function Tuple:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function Tuple:CanBeSubtype(other: Type): boolean
+	if other.Type == "Any" then
+		return true
+	end
+	if other.Type == "Tuple" then
+		if #self.ValueTypes ~= #other.ValueTypes then
+			return false
+		end
+		for i, valueType in self.ValueTypes do
+			if not valueType:CanBeSubtype(other.ValueTypes[i]) then
+				return false
+			end
+		end
+		return true
+	end
+	return false
+end
+
+function Tuple:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function Tuple:__eq(other: any): boolean
@@ -490,6 +584,30 @@ function Union:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
 end
 
+function Union:CanBeSubtype(other: Type): boolean
+	if other.Type == "Any" then
+		return true
+	end
+	if other.Type == "Union" then
+		for _, otherValueType in other.Types do
+			if not self:CanBeSubtype(otherValueType) then
+				return false
+			end
+		end
+		return true
+	end
+	for _, valueType in self.Types do
+		if valueType:CanBeSubtype(other) then
+			return true
+		end
+	end
+	return false
+end
+
+function Union:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
+end
+
 function Union:__eq(other: any): boolean
 	if type(other) ~= "table" or getmetatable(other) ~= Union then
 		return false
@@ -528,10 +646,23 @@ end
 
 function MapType:IsSubtype(other: Type): boolean
 	if other.Type == "Map" then
-		if self.KeyType and other.KeyType and not self.KeyType:IsSubtype(other.KeyType) then
+		if not self.KeyType:IsSubtype(other.KeyType) then
 			return false
 		end
-		if self.ValueType and other.ValueType and not self.ValueType:IsSubtype(other.ValueType) then
+		if not self.ValueType:IsSubtype(other.ValueType) then
+			return false
+		end
+		return true
+	end
+	return other.Type == "Any"
+end
+
+function MapType:CanBeSubtype(other: Type): boolean
+	if other.Type == "Map" then
+		if not self.KeyType:CanBeSubtype(other.KeyType) then
+			return false
+		end
+		if not self.ValueType:CanBeSubtype(other.ValueType) then
 			return false
 		end
 		return true
@@ -568,7 +699,20 @@ function FieldType:IsSubtype(other: Type): boolean
 		if self.Key ~= other.Key then
 			return false
 		end
-		if self.ValueType and other.ValueType and not self.ValueType:IsSubtype(other.ValueType) then
+		if not self.ValueType:IsSubtype(other.ValueType) then
+			return false
+		end
+		return true
+	end
+	return other.Type == "Any"
+end
+
+function FieldType:CanBeSubtype(other: Type): boolean
+	if other.Type == "Field" then
+		if self.Key ~= other.Key then
+			return false
+		end
+		if not self.ValueType:CanBeSubtype(other.ValueType) then
 			return false
 		end
 		return true
@@ -661,9 +805,9 @@ end
 
 function TableType:IsSubtype(other: Type): boolean
 	if other.Type == "table" then
-		for _, otherMap in other.Maps do
+		for _, otherMap in self.Maps do
 			local isSubtype = false
-			for _, map in self.Maps do
+			for _, map in other.Maps do
 				if map:IsSubtype(otherMap) then
 					isSubtype = true
 					break
@@ -692,6 +836,41 @@ end
 
 function TableType:IsTypeOf(other: Type): boolean
 	return other:IsSubtype(self)
+end
+
+function TableType:CanBeSubtype(other: Type): boolean
+	if other.Type == "table" then
+		for _, otherMap in self.Maps do
+			local canBeSubtype = false
+			for _, map in other.Maps do
+				if otherMap:CanBeSubtype(map) then
+					canBeSubtype = true
+					break
+				end
+			end
+			if not canBeSubtype then
+				return false
+			end
+		end
+		for _, field in self.Fields do
+			local canBeSubtype = false
+			for _, otherField in other.Fields do
+				if otherField:CanBeSubtype(field) then
+					canBeSubtype = true
+					break
+				end
+			end
+			if not canBeSubtype then
+				return false
+			end
+		end
+		return true
+	end
+	return other.Type == "Any"
+end
+
+function TableType:CanBeTypeOf(other: Type): boolean
+	return other:CanBeSubtype(self)
 end
 
 function TableType:__eq(other: any): boolean
