@@ -779,9 +779,6 @@ function TableType:Is(value: any): boolean
 	for _, field in self.Fields do
 		local key = field.Key
 		local keyValue = value[key]
-		if keyValue == nil then
-			return false
-		end
 		if not field.ValueType:Is(keyValue) then
 			return false
 		end
