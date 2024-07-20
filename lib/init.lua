@@ -548,12 +548,12 @@ function Union:ReplaceType(valueType: Type, newValueType: Type)
 	end
 end
 
-function Union:Is(value: any): boolean
+function Union:Is(...): boolean
 	if #self.Types == 0 then
 		return false
 	end
 	for _, type in self.Types do
-		if type:Is(value) then
+		if type:Is(...) then
 			return true
 		end
 	end
